@@ -8,5 +8,12 @@ class Grid
         vector<float> origin[3];
         vector<float> data;
         float dx, dy, dz;
-        float X, Y, Z;        
+        float X, Y, Z;
+
+    public:
+      Grid(int m, int n, int o);
+      int getVolume();
+      int getX();
+      int getY();
+      int getZ();
 };
