@@ -5,15 +5,17 @@ using namespace std;
 class Grid
 {
     public:
-        vector<float> origin[3];
+        float origin[3];
         vector<float> data;
         float dx, dy, dz;
         float X, Y, Z;
 
     public:
-      Grid(int m, int n, int o);
-      int getVolume();
-      int getX();
-      int getY();
-      int getZ();
+      Grid(int m, int n, int o, float (&orig)[3]);
+      float getVolume();
+      float getX();
+      float getY();
+      float getZ();
+      float* getOrigin();
+
 };

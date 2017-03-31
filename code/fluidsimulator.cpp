@@ -5,7 +5,7 @@ using namespace std;
 class FluidSimulator
 {
 public:
-	int X, Y, Z 	//Grid Dimensions of pressure, density, etc.
+	int 			X, Y, Z 	//Grid Dimensions of pressure, density, etc.
 	Grid			pressure_;
 	Grid			density;
 	Grid			velocity_[3];
@@ -20,6 +20,14 @@ public:
 	int&		Z();
 	void Acceleration(Grid velocity[3], Grid mass[3], vector<float> acceleration[3] , float Time_Step);
 };
+
+FluidSimulation::FluidSimulation(int m, int n, int o, Vector3f& origin, Vector3f& extent);
+{
+	X = m;
+	Y = n;
+	Z = o; 
+
+}
 
 int& FluidSimulator::X() {
 	return X;

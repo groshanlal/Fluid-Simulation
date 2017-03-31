@@ -3,7 +3,7 @@
 
 using namespace std;
 
-Grid::Grid(int m, int n, int o)
+Grid::Grid(int m, int n, int o, float (&orig)[3])
 {
   X = m;
   Y = n;
@@ -11,24 +11,32 @@ Grid::Grid(int m, int n, int o)
   dx = 1;
   dy = 1;
   dz = 1;
+  origin[0] = orig[0];
+  origin[1] = orig[1];
+  origin[2] = orig[2];
 }
 
-int Grid::getVolume()
+float Grid::getVolume()
 {
   return X*Y*Z;
 }
 
-int Grid::getX()
+float Grid::getX()
 {
   return X;
 }
 
-int Grid::getY()
+float Grid::getY()
 {
   return Y;
 }
 
-int Grid::getZ()
+float Grid::getZ()
 {
   return Z;
+}
+
+float* Grid::getOrigin()
+{
+  return origin;
 }
