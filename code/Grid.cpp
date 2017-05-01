@@ -1,42 +1,64 @@
-#include<vector>
-#include "Grid.h"
+#include "Grid.hpp"
 
-using namespace std;
-
-Grid::Grid(int m, int n, int o, float (&orig)[3])
+Grid::Grid(float origin_x, float origin_y, int xn, int yn, float dx, float dy)
 {
-  X = m;
-  Y = n;
-  Z = o;
-  dx = 1;
-  dy = 1;
-  dz = 1;
-  origin[0] = orig[0];
-  origin[1] = orig[1];
-  origin[2] = orig[2];
+  this->origin_x = origin_x;
+  this->origin_y = origin_y;
+  this->xn = xn;
+  this->yn = yn;
+  this->dx = dx;
+  this->dy = dy;
+
+  for(int i=0;i<xn;i++)
+  {
+    for(int j=0;j<yn;j++)
+    {
+      data.push_back(0);
+    }
+  }
 }
 
-float Grid::getVolume()
+Grid::Grid()
 {
-  return X*Y*Z;
+  this->origin_x = 10;
+  this->origin_y = 10;
+  this->xn = 3;
+  this->yn = 2;
+  this->dx = 1;
+  this->dy = 1;
+
+  for(int i=0;i<xn;i++)
+  {
+    for(int j=0;j<yn;j++)
+    {
+      data.push_back(0);
+    }
+  }
 }
 
-float Grid::getX()
+float Grid::getdata(int i, int j)
 {
-  return X;
+  return this->data[i*this->yn + j];
 }
 
-float Grid::getY()
+void Grid::setdata(float val, int i, int j)
 {
-  return Y;
+  this->data[i*this->yn + j]  = val;
 }
 
-float Grid::getZ()
+void Grid::setdata_block(float val, int a, int b, int len)
 {
-  return Z;
+  for(int i=a;i<a+len;i++)
+  {
+    for(int j=b;j<b+len;j++)
+    {
+      this->data[i*this->yn + j] = val;
+    }
+  }
 }
 
-float* Grid::getOrigin()
+Grid Grid::clone()
 {
-  return origin;
+  Grid c = Grid(origin_x, origin_y, xn, yn, dx, dy);
+  return c;
 }
