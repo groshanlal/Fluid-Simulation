@@ -38,6 +38,10 @@ Grid::Grid()
 
 float Grid::getdata(int i, int j)
 {
+  if(i>=this->xn)
+    i = this->xn - 1;
+  if(j>=this->yn)
+    j = this->yn - 1;
   return this->data[i*this->yn + j];
 }
 

@@ -19,6 +19,7 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
   vy       = Grid(origin_x, origin_y - dy/2, xn, yn+1, dx, dy);
 
   density.setdata_block(1,(int)xn/3,(int)xn/3,(int)xn/3);
+  //density.setdata_block(1,4,4,2);
 
   timestep = t;
 }
@@ -26,12 +27,14 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
 void FluidSimulation::computeNextStep()
 {
   this->advect();
-  this->applyAcceleration(0,-1.333);
+  this->applyAcceleration(0,-0.5);
   this->pressureSolve();
 
 }
 void FluidSimulation::applyAcceleration(float ax, float ay)
 {
+  //cout<<"acc\n";
+
   for(int i=0;i<vx.xn;i++)
   {
     for(int j=0;j<vx.yn;j++)
@@ -57,9 +60,8 @@ void FluidSimulation::applyAcceleration(float ax, float ay)
 
 void FluidSimulation::advect()
 {
+  //cout<<"advect\n";
   Grid backup_density = density.clone();
-  //Grid cent_vx = density.clone();
-  //Grid cent_vy = density.clone();
   Grid backup_vx = vx.clone();
   Grid backup_vy = vy.clone();
 
@@ -70,14 +72,14 @@ void FluidSimulation::advect()
       if(density.getdata(i,j) != 1)
         continue;
 
-      float grid_vel_x = vx.getdata(i,j) + vx.getdata(i+1,j);
-      grid_vel_x = grid_vel_x/2;
+      float grid_vel_x = (vx.getdata(i,j) + vx.getdata(i+1,j))/2;
+      float grid_vel_y = (vy.getdata(i,j) + vy.getdata(i,j+1))/2;
 
-      float grid_vel_y = vy.getdata(i,j) + vy.getdata(i,j+1);
-      grid_vel_y = grid_vel_y/2;
 
       float pos_x = i + grid_vel_x*timestep/vx.dx;
       float pos_y = j + grid_vel_y*timestep/vy.dy;
+
+
 
       int a = floor(pos_x+0.5);
       int b = floor(pos_y+0.5);
@@ -85,6 +87,16 @@ void FluidSimulation::advect()
       //cout<<i<<", "<<j<<" goes to "<<pos_y<<", "<<b<<endl;
 
       backup_density.setdata(1, a, b);
+
+
+      if(density.getdata(a, b)!=1)
+      {
+        backup_vx.setdata(backup_vx.getdata(a,b) +grid_vel_x, a, b);
+        backup_vx.setdata(backup_vx.getdata(a+1,b) + grid_vel_x, a+1, b);
+        backup_vy.setdata(backup_vy.getdata(a,b) + grid_vel_y, a, b);
+        backup_vy.setdata(backup_vy.getdata(a,b+1) + grid_vel_y, a, b+1);
+      }
+
     }
   }
 
@@ -97,11 +109,9 @@ void FluidSimulation::advect()
       if(backup_density.getdata(i,j) != 1)
         continue;
 
-      float grid_vel_x = vx.getdata(i,j) + vx.getdata(i+1,j);
-      grid_vel_x = grid_vel_x/2;
+      float grid_vel_x = (vx.getdata(i,j) + vx.getdata(i+1,j))/2;
+      float grid_vel_y = (vy.getdata(i,j) + vy.getdata(i,j+1))/2;
 
-      float grid_vel_y = vy.getdata(i,j) + vy.getdata(i,j+1);
-      grid_vel_y = grid_vel_y/2;
 
       float pos_x = i - grid_vel_x*timestep/vx.dx;
       float pos_y = j - grid_vel_y*timestep/vy.dy;
@@ -109,6 +119,7 @@ void FluidSimulation::advect()
 
       int a = floor(pos_x+0.5);
       int b = floor(pos_y+0.5);
+
 
       float vvxx = ((a+0.5)-pos_x)*vx.getdata(a,b) + (pos_x-(a-0.5))*vx.getdata(a+1,b);
       float vvyy = ((b+0.5)-pos_y)*vy.getdata(a,b) + (pos_y-(b-0.5))*vy.getdata(a,b+1);
@@ -127,7 +138,7 @@ void FluidSimulation::advect()
     for(int j=0;j<backup_vx.yn;j++)
     {
       int count=0;
-      if((i-1>0) && (backup_density.getdata(i-1,j) == 1))
+      if((i-1>0)&&(backup_density.getdata(i-1,j) == 1))
         count++;
       if((i<backup_density.xn)&&(backup_density.getdata(i,j)==1))
         count++;
@@ -141,7 +152,7 @@ void FluidSimulation::advect()
     for(int j=0;j<backup_vy.yn;j++)
     {
       int count=0;
-      if((j-1>0) && (backup_density.getdata(i,j-1) == 1))
+      if((j-1>0)&&(backup_density.getdata(i,j-1) == 1))
         count++;
       if((j<backup_density.yn)&&(backup_density.getdata(i,j)==1))
         count++;
@@ -161,23 +172,31 @@ void FluidSimulation::advect()
 
 void FluidSimulation::pressureSolve()
 {
+  //cout<<"pressure-solve\n";
   float rho = 1;
-  int n = density.xn * density.xn;
-  VectorXd x(n), b(n);
-  SparseMatrix<double> A(n,n);
+  int n=0;
 
   typedef Eigen::Triplet<double> T;
   vector<T> tripletList;
+  vector<T> mapList;
 
-
-  float rhs[density.xn][density.yn];
+  SparseMatrix<int> map(density.xn,density.yn);
   for(int i=0;i<density.xn;i++)
   {
     for(int j=0;j<density.yn;j++)
     {
-      rhs[i][j]=0;
+      if(density.getdata(i,j)==1)
+      {
+        mapList.push_back(T(i,j,n));
+        n++;
+      }
     }
   }
+  map.setFromTriplets(mapList.begin(), mapList.end());
+
+
+  VectorXd x(n), b(n);
+  SparseMatrix<double> A(n,n);
 
 
   float scale = 1 / density.dx;
@@ -187,27 +206,20 @@ void FluidSimulation::pressureSolve()
     {
       if(density.getdata(i,j)!=1)
         continue;
-      rhs[i][j] = -scale * (vx.getdata(i+1,j)-vx.getdata(i,j)+vy.getdata(i,j+1)-vy.getdata(i,j));
+
+      b[map.coeff(i,j)] = -scale * (vx.getdata(i+1,j)-vx.getdata(i,j)+vy.getdata(i,j+1)-vy.getdata(i,j));
 
       if(i==0)
-        rhs[i][j] = rhs[i][j] - scale * (vx.getdata(i,j) - 0);
+        b[map.coeff(i,j)] = b[map.coeff(i,j)] - scale * (vx.getdata(i,j) - 0);
 
       if(i+1==density.xn)
-        rhs[i][j] = rhs[i][j] + scale * (vx.getdata(i+1,j) - 0);
+        b[map.coeff(i,j)] = b[map.coeff(i,j)] + scale * (vx.getdata(i+1,j) - 0);
 
       if(j==0)
-        rhs[i][j] = rhs[i][j] - scale * (vy.getdata(i,j) - 0);
+        b[map.coeff(i,j)] = b[map.coeff(i,j)] - scale * (vy.getdata(i,j) - 0);
 
       if(j+1==density.yn)
-        rhs[i][j] = rhs[i][j] - scale * (vy.getdata(i,j+1) - 0);
-    }
-  }
-
-  for(int i=0;i<density.xn;i++)
-  {
-    for(int j=0;j<density.yn;j++)
-    {
-      b[i*density.xn  + j] = rhs[i][j];
+        b[map.coeff(i,j)] = b[map.coeff(i,j)] - scale * (vy.getdata(i,j+1) - 0);
     }
   }
 
@@ -218,23 +230,28 @@ void FluidSimulation::pressureSolve()
     {
       if((density.getdata(i,j)==1)&&(i+1<density.xn)&&(density.getdata(i+1,j)==1))
       {
-        tripletList.push_back(T(i*density.xn+j,i*density.xn+j,scale));
-        tripletList.push_back(T((i+1)*density.xn+j,(i+1)*density.xn+j,scale));
-        tripletList.push_back(T(i*density.xn+j,(i+1)*density.xn+j, -scale));
-        tripletList.push_back(T((i+1)*density.xn+j,i*density.xn+j, -scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i,j),scale));
+        tripletList.push_back(T(map.coeff(i+1,j),map.coeff(i+1,j),scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i+1,j), -scale));
+        tripletList.push_back(T(map.coeff(i+1,j),map.coeff(i,j), -scale));
       }
       else if((density.getdata(i,j)==1)&&(i+1<density.xn)&&(density.getdata(i+1,j)==0))
-        tripletList.push_back(T(i*density.xn+j,i*density.xn+j,scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i,j),scale));
+      else if((density.getdata(i,j)==0)&&(i+1<density.xn)&&(density.getdata(i+1,j)==1))
+        tripletList.push_back(T(map.coeff(i+1,j),map.coeff(i+1,j),scale));
 
       if((density.getdata(i,j)==1)&&(j+1<density.yn)&&(density.getdata(i,j+1)==1))
       {
-        tripletList.push_back(T(i*density.xn+j,i*density.xn+j,scale));
-        tripletList.push_back(T(i*density.xn+(j+1),i*density.xn+(j+1),scale));
-        tripletList.push_back(T(i*density.xn+j,i*density.xn+(j+1), -scale));
-        tripletList.push_back(T(i*density.xn+(j+1),i*density.xn+j, -scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i,j),scale));
+        tripletList.push_back(T(map.coeff(i,j+1),map.coeff(i,j+1),scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i,j+1), -scale));
+        tripletList.push_back(T(map.coeff(i,j+1),map.coeff(i,j), -scale));
       }
       else if((density.getdata(i,j)==1)&&(j+1<density.yn)&&(density.getdata(i,j+1)==0))
-        tripletList.push_back(T(i*density.xn+j,i*density.xn+j,scale));
+        tripletList.push_back(T(map.coeff(i,j),map.coeff(i,j),scale));
+      else if((density.getdata(i,j)==0)&&(j+1<density.yn)&&(density.getdata(i,j+1)==1))
+        tripletList.push_back(T(map.coeff(i,j+1),map.coeff(i,j+1),scale));
+
     }
   }
 
@@ -258,7 +275,7 @@ void FluidSimulation::pressureSolve()
       if(density.getdata(i,j)!=1)
         continue;
 
-      pressure.setdata(x[i*density.xn+j],i,j);
+      pressure.setdata(x(map.coeff(i,j)),i,j);
     }
   }
 
@@ -294,5 +311,9 @@ void FluidSimulation::pressureSolve()
 
     }
   }
+
+  //cout<<"A: \n"<<A<<endl;
+  //cout<<"x: \n"<<x<<endl;
+  //cout<<"b: \n"<<b<<endl;
 
 }

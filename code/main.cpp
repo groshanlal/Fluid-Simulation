@@ -8,7 +8,7 @@ using namespace std;
 
 //Grid t = Grid(4, 4, 4, 3, 10, 10);
 //Grid t;
-float FPS = 2.0;
+float FPS = 10.0;
 //FluidSimulation f = FluidSimulation(8, 8, 9, 10, 1/FPS);
 FluidSimulation f = FluidSimulation(8, 8, 80, 1, 1/FPS);
 
@@ -115,13 +115,13 @@ void print_grid(Grid t)
 int main(int argc, char** argv)
 {
 /*
-    for(int i=0;i<25;i++)
+    for(int i=0;i<35;i++)
     {
       print_grid(f.vy);
       print_grid(f.pressure);
       f.advect();
       f.applyAcceleration(0,-1);
-      f.pressureSolve();
+      //f.pressureSolve();
       cout<<endl;
     }
     return 0;
