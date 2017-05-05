@@ -3,15 +3,15 @@
 #include "Grid.hpp"
 #include "time.h"
 #include "FluidSimulation.hpp"
+#include "Particle.hpp"
 
 using namespace std;
 
 //Grid t = Grid(4, 4, 4, 3, 10, 10);
 //Grid t;
-float FPS = 10.0;
+float FPS = 10;
 //FluidSimulation f = FluidSimulation(8, 8, 9, 10, 1/FPS);
 FluidSimulation f = FluidSimulation(8, 8, 80, 1, 1/FPS);
-
 
 void draw(Grid t)
 {
@@ -115,16 +115,32 @@ void print_grid(Grid t)
 int main(int argc, char** argv)
 {
 /*
-    for(int i=0;i<35;i++)
+    for(int i=0;i<40;i++)
     {
-      print_grid(f.vy);
-      print_grid(f.pressure);
       f.advect();
       f.applyAcceleration(0,-1);
-      //f.pressureSolve();
+      cout<<"Iteration: "<<i<<endl;
+      print_grid(f.vy);
+      f.pressureSolve();
+      print_grid(f.pressure);
+      print_grid(f.vy);
       cout<<endl;
     }
     return 0;
+*/
+/*
+    Particle p = Particle_around(10,20);
+    cout<<p.x<<", "<<p.y<<endl;
+
+    p.set_velocity(4,5);
+    cout<<p.get_vx()<<", "<<p.get_vy()<<endl;
+    cout<<p.get_vx(0.1,0.1)<<", "<<p.get_vy(0.1,0.1)<<endl;
+    cout<<p.get_vx(0.9,0.9)<<", "<<p.get_vy(0.9,0.9)<<endl;
+    cout<<p.kernel(0,0)<<endl;
+    cout<<p.kernel(0.5,0.25)<<endl;
+    cout<<p.kernel(1.5,0.25)<<endl;
+    cout<<p.kernel(0.5,1.25)<<endl;
+    return 1;
 */
 
     glutInit(&argc, argv);

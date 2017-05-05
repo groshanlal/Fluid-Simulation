@@ -50,11 +50,11 @@ void Grid::setdata(float val, int i, int j)
   this->data[i*this->yn + j]  = val;
 }
 
-void Grid::setdata_block(float val, int a, int b, int len)
+void Grid::setdata_block(float val, int a, int b, int len, int breadth)
 {
   for(int i=a;i<a+len;i++)
   {
-    for(int j=b;j<b+len;j++)
+    for(int j=b;j<b+breadth;j++)
     {
       this->data[i*this->yn + j] = val;
     }

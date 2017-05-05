@@ -17,7 +17,7 @@ class Grid
     Grid(float origin_x, float origin_y, int xn, int yn, float dx, float dy);
     float getdata(int i, int j);
     void setdata(float val, int i, int j);
-    void setdata_block(float val, int a, int b, int len);
+    void setdata_block(float val, int a, int b, int len, int breadth);
     Grid clone();
 };
 

@@ -2,6 +2,7 @@
 #include <cmath>
 #include "FluidSimulation.hpp"
 #include "Grid.hpp"
+#include "Particle.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
@@ -18,19 +19,60 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
   vx       = Grid(origin_x - dx/2, origin_y, xn+1, yn, dx, dy);
   vy       = Grid(origin_x, origin_y - dy/2, xn, yn+1, dx, dy);
 
-  density.setdata_block(1,(int)xn/3,(int)xn/3,(int)xn/3);
-  //density.setdata_block(1,4,4,2);
+  density.setdata_block(1,(int)xn/3,20,(int)xn/3,(int)xn/3);
 
   timestep = t;
+
+  for(int i=0;i<density.xn;i++)
+  {
+    for(int j=0;j<density.yn;j++)
+    {
+      if(density.getdata(i,j)==1)
+        continue;
+
+      for(int k=0;k<4;k++)
+        ParticleSystem.push_back(Particle_around(i,j));
+    }
+  }
 }
 
 void FluidSimulation::computeNextStep()
 {
+  float cfl = this->CFL();
+  float threshold = 1.5;
+
+  if(cfl>threshold)
+    cout<<"CFL greater than "<<threshold<<": "<<cfl<<endl;
+
   this->advect();
   this->applyAcceleration(0,-0.5);
   this->pressureSolve();
 
 }
+
+float FluidSimulation::CFL()
+{
+  float u_max=0;
+  for(int i=0;i<density.xn;i++)
+  {
+    for(int j=0;j<density.yn;j++)
+    {
+      if(density.getdata(i,j)!=1)
+          continue;
+
+      float ux = (vx.getdata(i,j) + vx.getdata(i+1,j))/2;
+      float uy = (vy.getdata(i,j) + vy.getdata(i,j+1))/2;
+
+      float u = ux*ux + uy*uy;
+      if(u>u_max)
+        u_max=u;
+    }
+  }
+
+  u_max = sqrt(u_max);
+  return u_max*timestep/density.dx;
+}
+
 void FluidSimulation::applyAcceleration(float ax, float ay)
 {
   //cout<<"acc\n";
@@ -39,7 +81,7 @@ void FluidSimulation::applyAcceleration(float ax, float ay)
   {
     for(int j=0;j<vx.yn;j++)
     {
-      if( ((i-1>0) && (density.getdata(i-1,j) == 1)) || ((i<density.xn))&&(density.getdata(i,j)==1) )
+      if( ((i-1>=0) && (density.getdata(i-1,j) == 1)) || ((i<density.xn))&&(density.getdata(i,j)==1) )
       {
         vx.setdata(vx.getdata(i,j)  + ax*timestep, i, j);
       }
@@ -50,7 +92,7 @@ void FluidSimulation::applyAcceleration(float ax, float ay)
   {
     for(int j=0;j<vy.yn;j++)
     {
-      if( ((j-1>0) && (density.getdata(i,j-1) == 1)) || ((j<density.yn))&&(density.getdata(i,j)==1) )
+      if( ((j-1>=0) && (density.getdata(i,j-1) == 1)) || ((j<density.yn))&&(density.getdata(i,j)==1) )
       {
         vy.setdata(vy.getdata(i,j)  + ay*timestep, i, j);
       }
@@ -85,6 +127,11 @@ void FluidSimulation::advect()
       int b = floor(pos_y+0.5);
 
       //cout<<i<<", "<<j<<" goes to "<<pos_y<<", "<<b<<endl;
+      if((a<0)||(a>=density.xn)||(b<0)||(b>=density.yn))
+      {
+        cout<<"Particle going out!! ";
+        cout<<a<<", "<<b<<endl;
+      }
 
       backup_density.setdata(1, a, b);
 
@@ -120,6 +167,12 @@ void FluidSimulation::advect()
       int a = floor(pos_x+0.5);
       int b = floor(pos_y+0.5);
 
+      if(density.getdata(a,b)!=1)
+      {
+        cout<<"Semi-Lagrangian backtrace outside fluid!! ";
+        cout<<a<<", "<<b<<endl;
+      }
+
 
       float vvxx = ((a+0.5)-pos_x)*vx.getdata(a,b) + (pos_x-(a-0.5))*vx.getdata(a+1,b);
       float vvyy = ((b+0.5)-pos_y)*vy.getdata(a,b) + (pos_y-(b-0.5))*vy.getdata(a,b+1);
@@ -138,7 +191,7 @@ void FluidSimulation::advect()
     for(int j=0;j<backup_vx.yn;j++)
     {
       int count=0;
-      if((i-1>0)&&(backup_density.getdata(i-1,j) == 1))
+      if((i-1>=0)&&(backup_density.getdata(i-1,j) == 1))
         count++;
       if((i<backup_density.xn)&&(backup_density.getdata(i,j)==1))
         count++;
@@ -152,7 +205,7 @@ void FluidSimulation::advect()
     for(int j=0;j<backup_vy.yn;j++)
     {
       int count=0;
-      if((j-1>0)&&(backup_density.getdata(i,j-1) == 1))
+      if((j-1>=0)&&(backup_density.getdata(i,j-1) == 1))
         count++;
       if((j<backup_density.yn)&&(backup_density.getdata(i,j)==1))
         count++;
@@ -173,7 +226,7 @@ void FluidSimulation::advect()
 void FluidSimulation::pressureSolve()
 {
   //cout<<"pressure-solve\n";
-  float rho = 1;
+  float rho = 0.001;
   int n=0;
 
   typedef Eigen::Triplet<double> T;
@@ -219,7 +272,7 @@ void FluidSimulation::pressureSolve()
         b[map.coeff(i,j)] = b[map.coeff(i,j)] - scale * (vy.getdata(i,j) - 0);
 
       if(j+1==density.yn)
-        b[map.coeff(i,j)] = b[map.coeff(i,j)] - scale * (vy.getdata(i,j+1) - 0);
+        b[map.coeff(i,j)] = b[map.coeff(i,j)] + scale * (vy.getdata(i,j+1) - 0);
     }
   }
 
@@ -271,14 +324,12 @@ void FluidSimulation::pressureSolve()
   {
     for(int j=0;j<pressure.yn;j++)
     {
-
       if(density.getdata(i,j)!=1)
         continue;
 
       pressure.setdata(x(map.coeff(i,j)),i,j);
     }
   }
-
 
 
   scale = timestep / (rho*density.dx);
@@ -296,18 +347,19 @@ void FluidSimulation::pressureSolve()
       vy.setdata(vy.getdata(i,j) -  scale*pressure.getdata(i,j) ,i,j);
       vy.setdata(vy.getdata(i,j+1) +  scale*pressure.getdata(i,j) ,i,j+1);
 
-
       if(i==0)
         vx.setdata(0,i,j);
 
-      if(i+1==density.xn)
-        vx.setdata(0,i,j);
+      if(i==density.xn-1)
+        vx.setdata(0,i+1,j);
 
       if(j==0)
-        vy.setdata(0,i,j);
+        vy.setdata(0,i,0);
 
-      if(j+1==density.yn)
-        vy.setdata(0,i,j);
+      if(j==density.yn-1)
+        vy.setdata(0,i,j+1);
+
+
 
     }
   }
