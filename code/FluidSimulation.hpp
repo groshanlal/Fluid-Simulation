@@ -12,13 +12,14 @@ class FluidSimulation
   public:
     Grid pressure, density;
     Grid vx, vy;
+    Grid old_vx, old_vy;
     float timestep;
     vector<Particle> ParticleSystem;
 
     FluidSimulation(float origin_x, float origin_y, int xn, float dx, float t);
     void computeNextStep();
     void applyAcceleration(float ax, float ay);
-    void advect_PIC();
+    void advect();
     void pressureSolve();
     float CFL();
 };

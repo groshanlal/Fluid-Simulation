@@ -11,7 +11,7 @@ using namespace std;
 
 //Grid t = Grid(4, 4, 4, 3, 10, 10);
 //Grid t;
-float FPS = 10;
+float FPS = 20;
 //FluidSimulation f = FluidSimulation(8, 8, 9, 10, 1/FPS);
 FluidSimulation f = FluidSimulation(8, 8, 81, 1, 1/FPS);
 
@@ -22,6 +22,7 @@ float panx = 0.0, pany = 0.0;
 bool show_grid = false;
 bool show_grid_lines = false;
 bool show_particles = true;
+bool play = true;
 
 void mouse(int button, int state, int x, int y)
 {
@@ -80,6 +81,11 @@ void keyboard (unsigned char key, int x, int y)
 			exit(0);
 		break;
 
+    case 'R':
+		case 'r':
+      f = FluidSimulation(8, 8, 81, 1, 1/FPS);
+    break;
+
     case 'P':
     case 'p':
       show_particles = !show_particles;
@@ -94,6 +100,11 @@ void keyboard (unsigned char key, int x, int y)
     case 'l':
       show_grid_lines = !show_grid_lines;
     break;
+
+    case 32:
+    play = !play;
+    break;
+
 
 		default:
 		break;
@@ -184,6 +195,8 @@ void draw(Grid t, vector<Particle> p)
 
 void display()
 {
+    //clock_t current_time = clock();
+
     glClear (GL_COLOR_BUFFER_BIT);
     glClearColor(1.0, 1.0, 1.0, 1.0);
 
@@ -197,7 +210,11 @@ void display()
 
 
     draw(f.density, f.ParticleSystem);
-    glFlush ();
+    glutSwapBuffers();
+
+    //clock_t end_time = clock();
+    //cout<<"Drawing Time for one iteration: "<< (float)(end_time - current_time)/CLOCKS_PER_SEC<<" seconds"<<endl;
+
 
 }
 
@@ -218,13 +235,18 @@ void init (void)
 void idle()
 {
     clock_t current_time = clock();
-    clock_t end_time = current_time + CLOCKS_PER_SEC/FPS;
+    clock_t end_time = current_time + CLOCKS_PER_SEC/(FPS*20);
 
 
     while(current_time<end_time)
-        current_time=clock();
+    {
+      current_time=clock();
+    }
 
-    f.computeNextStep();
+    if(play)
+    {
+      f.computeNextStep();
+    }
     glutPostRedisplay();
 }
 
@@ -241,14 +263,6 @@ void print_grid(Grid t)
   cout<<endl;
 }
 
-
-/*
- *  Declare initial window size, position, and display mode
- *  (single buffer and RGBA).  Open window with "hello"
- *  in its title bar.  Call initialization routines.
- *  Register callback function to display graphics.
- *  Enter main loop and process events.
- */
 int main(int argc, char** argv)
 {
 /*
@@ -279,16 +293,24 @@ int main(int argc, char** argv)
     cout<<p.kernel(0.5,1.25)<<endl;
     return 1;
 */
-    cout<<"Fluid Simulator\n";
+    cout<<"------------------------------\n";
+    cout<<"2D Fluid Simulator\n";
+    cout<<"------------------------------\n";
+    cout<<"-----------CONTROLS-----------\n";
+    cout<<"------------------------------\n";
     cout<<"Press arrow keys to pan\n";
     cout<<"Drag left mouse-button to zoom\n";
     cout<<"Press P to show/hide fluid-particles\n";
     cout<<"Press G to show/hide fluid-grids\n";
     cout<<"Press L to show/hide grid-lines\n";
+    cout<<"Press Space to play/pause\n";
+    cout<<"Press R to restart\n";
     cout<<"Press Q to exit\n";
+    cout<<"------------------------------\n";
+
 
     glutInit(&argc, argv);
-    glutInitDisplayMode (GLUT_SINGLE | GLUT_RGB);
+    glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize (600, 600);
     glutInitWindowPosition (10, 10);
     glutCreateWindow ("Fluid Simulation");

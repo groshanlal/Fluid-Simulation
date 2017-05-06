@@ -20,6 +20,8 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
   density  = Grid(origin_x, origin_y, xn, yn, dx, dy);
   vx       = Grid(origin_x - dx/2, origin_y, xn+1, yn, dx, dy);
   vy       = Grid(origin_x, origin_y - dy/2, xn, yn+1, dx, dy);
+  old_vx   = Grid(origin_x - dx/2, origin_y, xn+1, yn, dx, dy);
+  old_vy   = Grid(origin_x, origin_y - dy/2, xn, yn+1, dx, dy);
 
   density.setdata_block(1,(int)xn/3,20,(int)xn/3,(int)xn/3);
 
@@ -44,13 +46,13 @@ void FluidSimulation::computeNextStep()
 {
 
   float cfl = this->CFL();
-  float threshold = 1.5;
+  float threshold = 2.0;
 
   if(cfl>threshold)
     cout<<"CFL greater than "<<threshold<<": "<<cfl<<endl;
 
-  this->advect_PIC();
-  this->applyAcceleration(0,-1);
+  this->advect();
+  this->applyAcceleration(0,-6);
   this->pressureSolve();
 
 
@@ -106,7 +108,7 @@ void FluidSimulation::applyAcceleration(float ax, float ay)
   }
 }
 
-void FluidSimulation::advect_PIC()
+void FluidSimulation::advect()
 {
   for(vector<Particle>::iterator it = ParticleSystem.begin(); it != ParticleSystem.end() ; it++)
   {
@@ -116,8 +118,18 @@ void FluidSimulation::advect_PIC()
     float gx = floor(px + 0.5);
     float gy = floor(py + 0.5);
 
-    float pvx = (gx + 0.5 - px)*vx.getdata(gx,gy) + (px - gx + 0.5)*vx.getdata(gx+1,gy);
-    float pvy = (gy + 0.5 - py)*vy.getdata(gx,gy) + (py - gy + 0.5)*vy.getdata(gx,gy+1);
+    //PIC
+    float pvx_pic = (gx + 0.5 - px)*vx.getdata(gx,gy) + (px - gx + 0.5)*vx.getdata(gx+1,gy);
+    float pvy_pic = (gy + 0.5 - py)*vy.getdata(gx,gy) + (py - gy + 0.5)*vy.getdata(gx,gy+1);
+
+    //FLIP
+    float pvx_flip = it->vx + (gx + 0.5 - px)*(vx.getdata(gx,gy) - old_vx.getdata(gx,gy)) + (px - gx + 0.5)*(vx.getdata(gx+1,gy) - old_vx.getdata(gx+1,gy));
+    float pvy_flip = it->vy + (gy + 0.5 - py)*(vy.getdata(gx,gy) - old_vy.getdata(gx,gy)) + (py - gy + 0.5)*(vy.getdata(gx,gy+1) - old_vy.getdata(gx,gy+1));
+
+    float alpha = 0.95;
+    //float alpha = 0.00;
+    float pvx = alpha*pvx_flip + (1-alpha)*pvx_pic;
+    float pvy = alpha*pvy_flip + (1-alpha)*pvy_pic;
 
     it->set_velocity(pvx, pvy);
   }
@@ -143,9 +155,9 @@ void FluidSimulation::advect_PIC()
       px++;
     while(py<0)
       py++;
-    while(px>=density.xn)
+    while(px>density.xn-1)
       px--;
-    while(py>=density.yn)
+    while(py>density.yn-1)
       py--;
 
     p.set_position(px,py);
@@ -202,13 +214,12 @@ void FluidSimulation::advect_PIC()
     }
   }
 
-
   ParticleSystem = ps;
   density = backup_density;
   vx = backup_vx;
   vy = backup_vy;
-
-
+  old_vx = backup_vx;
+  old_vy = backup_vy;
 }
 
 void FluidSimulation::pressureSolve()
@@ -234,7 +245,7 @@ void FluidSimulation::pressureSolve()
   }
   map.setFromTriplets(mapList.begin(), mapList.end());
 
-  float rho = 0.100;
+  float rho = 1.00;
   //cout<<"No. of grid cells, density: "<<n<<", "<<rho<<endl;
 
   VectorXd x(n), b(n);
