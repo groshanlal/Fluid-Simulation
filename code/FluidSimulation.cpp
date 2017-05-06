@@ -36,7 +36,7 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
       if(density.getdata(i,j)!=1)
         continue;
 
-      for(int k=0;k<8;k++)
+      for(int k=0;k<40;k++)
         ParticleSystem.push_back(Particle_around(i,j));
     }
   }
