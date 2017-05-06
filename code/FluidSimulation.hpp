@@ -18,7 +18,7 @@ class FluidSimulation
     FluidSimulation(float origin_x, float origin_y, int xn, float dx, float t);
     void computeNextStep();
     void applyAcceleration(float ax, float ay);
-    void advect();
+    void advect_PIC();
     void pressureSolve();
     float CFL();
 };
