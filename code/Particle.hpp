@@ -8,10 +8,12 @@ class Particle
     float vx,vy;
 
     Particle(float x,float y);
+    void set_position(float vx, float vy);
     void set_velocity(float vx, float vy);
     float kernel(float x, float y);
     float get_vx(float x=0, float y=0);
     float get_vy(float x=0, float y=0);
+    Particle clone();
 
 
 };

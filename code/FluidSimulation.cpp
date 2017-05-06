@@ -5,6 +5,8 @@
 #include "Particle.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include <stdlib.h>
+#include <time.h>
 
 using namespace Eigen;
 using namespace std;
@@ -23,14 +25,16 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
 
   timestep = t;
 
+  srand (time(NULL));
+
   for(int i=0;i<density.xn;i++)
   {
     for(int j=0;j<density.yn;j++)
     {
-      if(density.getdata(i,j)==1)
+      if(density.getdata(i,j)!=1)
         continue;
 
-      for(int k=0;k<4;k++)
+      for(int k=0;k<8;k++)
         ParticleSystem.push_back(Particle_around(i,j));
     }
   }
@@ -38,15 +42,17 @@ FluidSimulation::FluidSimulation(float origin_x, float origin_y, int xn, float d
 
 void FluidSimulation::computeNextStep()
 {
+
   float cfl = this->CFL();
   float threshold = 1.5;
 
   if(cfl>threshold)
     cout<<"CFL greater than "<<threshold<<": "<<cfl<<endl;
 
-  this->advect();
-  this->applyAcceleration(0,-0.5);
+  this->advect_PIC();
+  this->applyAcceleration(0,-1);
   this->pressureSolve();
+
 
 }
 
@@ -100,103 +106,87 @@ void FluidSimulation::applyAcceleration(float ax, float ay)
   }
 }
 
-void FluidSimulation::advect()
+void FluidSimulation::advect_PIC()
 {
-  //cout<<"advect\n";
+  for(vector<Particle>::iterator it = ParticleSystem.begin(); it != ParticleSystem.end() ; it++)
+  {
+    float px = it->x;
+    float py = it->y;
+
+    float gx = floor(px + 0.5);
+    float gy = floor(py + 0.5);
+
+    float pvx = (gx + 0.5 - px)*vx.getdata(gx,gy) + (px - gx + 0.5)*vx.getdata(gx+1,gy);
+    float pvy = (gy + 0.5 - py)*vy.getdata(gx,gy) + (py - gy + 0.5)*vy.getdata(gx,gy+1);
+
+    it->set_velocity(pvx, pvy);
+  }
+
+  vector<Particle> ps;
   Grid backup_density = density.clone();
   Grid backup_vx = vx.clone();
   Grid backup_vy = vy.clone();
+  Grid backup_wx = vx.clone();
+  Grid backup_wy = vy.clone();
 
-  for(int i=0;i<density.xn;i++)
+  for(vector<Particle>::iterator it = ParticleSystem.begin(); it != ParticleSystem.end(); it++)
   {
-    for(int j=0;j<density.yn;j++)
-    {
-      if(density.getdata(i,j) != 1)
-        continue;
+    Particle p = it->clone();
+    float pvx = it->vx;
+    float pvy = it->vy;
+    float px  = it->x;
+    float py  = it->y;
+    px = px + pvx*timestep/density.dx;
+    py = py + pvy*timestep/density.dy;
 
-      float grid_vel_x = (vx.getdata(i,j) + vx.getdata(i+1,j))/2;
-      float grid_vel_y = (vy.getdata(i,j) + vy.getdata(i,j+1))/2;
+    while(px<0)
+      px++;
+    while(py<0)
+      py++;
+    while(px>=density.xn)
+      px--;
+    while(py>=density.yn)
+      py--;
 
+    p.set_position(px,py);
+    ps.push_back(p);
 
-      float pos_x = i + grid_vel_x*timestep/vx.dx;
-      float pos_y = j + grid_vel_y*timestep/vy.dy;
+    float gx = floor(px + 0.5);
+    float gy = floor(py + 0.5);
 
-
-
-      int a = floor(pos_x+0.5);
-      int b = floor(pos_y+0.5);
-
-      //cout<<i<<", "<<j<<" goes to "<<pos_y<<", "<<b<<endl;
-      if((a<0)||(a>=density.xn)||(b<0)||(b>=density.yn))
-      {
-        cout<<"Particle going out!! ";
-        cout<<a<<", "<<b<<endl;
-      }
-
-      backup_density.setdata(1, a, b);
-
-
-      if(density.getdata(a, b)!=1)
-      {
-        backup_vx.setdata(backup_vx.getdata(a,b) +grid_vel_x, a, b);
-        backup_vx.setdata(backup_vx.getdata(a+1,b) + grid_vel_x, a+1, b);
-        backup_vy.setdata(backup_vy.getdata(a,b) + grid_vel_y, a, b);
-        backup_vy.setdata(backup_vy.getdata(a,b+1) + grid_vel_y, a, b+1);
-      }
-
-    }
+    backup_density.setdata(1,gx,gy);
   }
 
-  for(int i=0;i<density.xn;i++)
+  for(vector<Particle>::iterator it = ps.begin(); it != ps.end(); it++)
   {
-    for(int j=0;j<density.yn;j++)
-    {
-      if(density.getdata(i,j) != 1)
-        continue;
-      if(backup_density.getdata(i,j) != 1)
-        continue;
+    float px = it->x;
+    float py = it->y;
 
-      float grid_vel_x = (vx.getdata(i,j) + vx.getdata(i+1,j))/2;
-      float grid_vel_y = (vy.getdata(i,j) + vy.getdata(i,j+1))/2;
+    float gx = floor(px + 0.5);
+    float gy = floor(py + 0.5);
 
+    backup_vx.setdata(backup_vx.getdata(gx,gy) + it->get_vx(gx-0.5-px, gy-py),gx,gy);
+    backup_vx.setdata(backup_vx.getdata(gx+1,gy) + it->get_vx(gx+0.5-px, gy-py),gx+1,gy);
 
-      float pos_x = i - grid_vel_x*timestep/vx.dx;
-      float pos_y = j - grid_vel_y*timestep/vy.dy;
+    backup_vy.setdata(backup_vy.getdata(gx,gy) + it->get_vy(gx-px, gy-0.5-py),gx,gy);
+    backup_vy.setdata(backup_vy.getdata(gx,gy+1) + it->get_vy(gx-px, gy+0.5-py),gx,gy+1);
 
+    backup_wx.setdata(backup_wx.getdata(gx,gy) + it->kernel(gx-0.5-px, gy-py),gx,gy);
+    backup_wx.setdata(backup_wx.getdata(gx+1,gy) + it->kernel(gx+0.5-px, gy-py),gx+1,gy);
 
-      int a = floor(pos_x+0.5);
-      int b = floor(pos_y+0.5);
-
-      if(density.getdata(a,b)!=1)
-      {
-        cout<<"Semi-Lagrangian backtrace outside fluid!! ";
-        cout<<a<<", "<<b<<endl;
-      }
-
-
-      float vvxx = ((a+0.5)-pos_x)*vx.getdata(a,b) + (pos_x-(a-0.5))*vx.getdata(a+1,b);
-      float vvyy = ((b+0.5)-pos_y)*vy.getdata(a,b) + (pos_y-(b-0.5))*vy.getdata(a,b+1);
-
-      //cout<<i<<", "<<j<<" gets vel from "<<pos_y<<", "<<b<<": "<<vvyy<<endl;
-
-      backup_vx.setdata(backup_vx.getdata(i,j) + vvxx,i,j);
-      backup_vx.setdata(backup_vx.getdata(i+1,j) + vvxx,i+1,j);
-      backup_vy.setdata(backup_vy.getdata(i,j) + vvyy,i,j);
-      backup_vy.setdata(backup_vy.getdata(i,j+1) + vvyy,i,j+1);
-    }
+    backup_wy.setdata(backup_wy.getdata(gx,gy) + it->kernel(gx-px, gy-0.5-py),gx,gy);
+    backup_wy.setdata(backup_wy.getdata(gx,gy+1) + it->kernel(gx-px, gy+0.5-py),gx,gy+1);
   }
 
   for(int i=0;i<backup_vx.xn;i++)
   {
     for(int j=0;j<backup_vx.yn;j++)
     {
-      int count=0;
-      if((i-1>=0)&&(backup_density.getdata(i-1,j) == 1))
-        count++;
-      if((i<backup_density.xn)&&(backup_density.getdata(i,j)==1))
-        count++;
-      if(count>0)
-        backup_vx.setdata(backup_vx.getdata(i,j)/count, i, j);
+      if(backup_wx.getdata(i,j)==0)
+        continue;
+
+      backup_vx.setdata(backup_vx.getdata(i,j)/backup_wx.getdata(i,j),i,j);
+
     }
   }
 
@@ -204,18 +194,16 @@ void FluidSimulation::advect()
   {
     for(int j=0;j<backup_vy.yn;j++)
     {
-      int count=0;
-      if((j-1>=0)&&(backup_density.getdata(i,j-1) == 1))
-        count++;
-      if((j<backup_density.yn)&&(backup_density.getdata(i,j)==1))
-        count++;
-      if(count>0)
-        backup_vy.setdata(backup_vy.getdata(i,j)/count, i, j);
+      if(backup_wy.getdata(i,j)==0)
+        continue;
+
+      backup_vy.setdata(backup_vy.getdata(i,j)/backup_wy.getdata(i,j),i,j);
+
     }
   }
 
 
-
+  ParticleSystem = ps;
   density = backup_density;
   vx = backup_vx;
   vy = backup_vy;
@@ -226,7 +214,6 @@ void FluidSimulation::advect()
 void FluidSimulation::pressureSolve()
 {
   //cout<<"pressure-solve\n";
-  float rho = 0.001;
   int n=0;
 
   typedef Eigen::Triplet<double> T;
@@ -247,6 +234,8 @@ void FluidSimulation::pressureSolve()
   }
   map.setFromTriplets(mapList.begin(), mapList.end());
 
+  float rho = 0.100;
+  //cout<<"No. of grid cells, density: "<<n<<", "<<rho<<endl;
 
   VectorXd x(n), b(n);
   SparseMatrix<double> A(n,n);

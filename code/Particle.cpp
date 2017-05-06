@@ -14,13 +14,14 @@ Particle::Particle(float x, float y)
 
 Particle Particle_around(float x,float y)
 {
-  srand (time(NULL));
   float r, rx, ry;
 
-  r = (rand() % 1000);
+  r = (rand() % 998);
+  r = r + 1;
   rx = r/1000;
 
-  r = (rand() % 1000);
+  r = (rand() % 998);
+  r = r + 1;
   ry = r/1000;
 
   return Particle(x + rx - 0.5, y + ry - 0.5);
@@ -32,6 +33,13 @@ void Particle::set_velocity(float vx, float vy)
 {
   this->vx = vx;
   this->vy = vy;
+}
+
+
+void Particle::set_position(float x, float y)
+{
+  this->x = x;
+  this->y = y;
 }
 
 float Particle::kernel(float x, float y)
@@ -62,4 +70,11 @@ float Particle::get_vx(float x, float y)
 float Particle::get_vy(float x, float y)
 {
   return this->vy * this->kernel(x,y);
+}
+
+Particle Particle::clone()
+{
+  Particle  p = Particle(this->x, this->y);
+  p.set_velocity(this->vx, this->vy);
+  return p;
 }
