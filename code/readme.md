@@ -5,7 +5,7 @@ Depends on Eigen library.
 Compile using "make".  
 Run as "./main".  
 
--------------------CONTROLS-------------------  
+CONTROLS:  
 Press arrow keys to pan  
 Drag left mouse-button to zoom  
 Press P to show/hide fluid-particles  
@@ -14,4 +14,3 @@ Press L to show/hide grid-lines
 Press Space to play/pause  
 Press R to restart  
 Press Q to exit  
-----------------------------------------------
