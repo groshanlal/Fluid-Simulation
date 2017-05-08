@@ -1,13 +1,11 @@
-Fluid Simulator with mixed PIC/FLIP advection scheme on OpenGL/glut.
+Fluid Simulator with mixed PIC/FLIP advection scheme on OpenGL/glut.   
 
-Depends on Eigen library.
+Depends on Eigen library.  
 
-Compile using "make".
-Run as "./main"
+Compile using "make".  
+Run as "./main".  
 
-----------------------------------------------
--------------------CONTROLS-------------------
-----------------------------------------------
+-------------------CONTROLS-------------------  
 Press arrow keys to pan  
 Drag left mouse-button to zoom  
 Press P to show/hide fluid-particles  
